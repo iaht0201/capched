@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Anti-Captcha Tool</title>
+  </head>
+  <body>
+    <form id="captcha-form">
+      <h3>API Key</h3>
+      <input id="input-api-key" style="width: 600px;" />
+      <br><br>
+
+      <h3>Input image data URL</h3>
+      <textarea id="input-url-image" rows="6" cols="80"></textarea>
+      <br><br>
+
+      <button type="button" onclick="convert()">Extract & Solve CAPTCHA</button>
+
+      <h3>Output</h3>
+      <textarea id="output" rows="4" cols="80" readonly></textarea>
+    </form>
+
+    <script>
+      // Chặn submit form
+      document.getElementById("captcha-form").addEventListener("submit", function (e) {
+        e.preventDefault();
+      });
+
+      // Chặn Enter key gây submit
+      document.getElementById("captcha-form").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+        }
+      });
+
+      async function convert() {
+        const dataUrl = document.getElementById("input-url-image").value.trim();
+        const apiKey = document.getElementById("input-api-key").value.trim();
+        const output = document.getElementById("output");
+
+        if (!dataUrl || !apiKey) {
+          alert("Vui lòng nhập cả API key và image data URL.");
+          return;
+        }
+
+        const captchaBase64 = dataUrl.split(",")[1] || "";
+        output.value = "Đang tạo task...";
+
+        try {
+          // Gửi CAPTCHA lên Anti-Captcha
+          const createResponse = await fetch("https://api.anti-captcha.com/createTask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              clientKey: apiKey,
+              task: {
+                type: "ImageToTextTask",
+                body: captchaBase64,
+                phrase: false,
+                case: false,
+                numeric: 0,
+                math: false,
+                minLength: 0,
+                maxLength: 0
+              }
+            })
+          });
+
+          const createData = await createResponse.json();
+          if (createData.errorId !== 0) {
+            output.value = "Lỗi tạo task: " + createData.errorDescription;
+            return;
+          }
+
+          const taskId = createData.taskId;
+          output.value = "Đã tạo task. Đang đợi kết quả...";
+
+          // Chờ kết quả CAPTCHA
+          while (true) {
+            await new Promise(resolve => setTimeout(resolve, 5000));
+
+            const resultResponse = await fetch("https://api.anti-captcha.com/getTaskResult", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                clientKey: apiKey,
+                taskId: taskId
+              })
+            });
+
+            const resultData = await resultResponse.json();
+
+            if (resultData.status === "processing") {
+              output.value = "Đang xử lý... thử lại sau 5 giây...";
+            } else if (resultData.status === "ready") {
+              output.value = "Kết quả CAPTCHA: " + resultData.solution.text;
+              break;
+            } else {
+              output.value = "Lỗi giải CAPTCHA: " + resultData.errorDescription;
+              break;
+            }
+          }
+        } catch (err) {
+          output.value = "Lỗi: " + err;
+        }
+      }
+    </script>
+  </body>
+</html>
