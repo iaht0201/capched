@@ -2,9 +2,14 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Anti-Captcha Tool</title>
+    <title> Tool</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
   </head>
   <body>
+    <h1> Format file email txt from to excel</h1> 
+    <input type="file" id="fileInput" />
+    <button id="exportBtn">Export to Excel</button>
+    <h1>Anti-Captcha Tool</h1>
     <form id="captcha-form">
       <h3>API Key</h3>
       <input id="input-api-key" style="width: 600px;" />
@@ -104,6 +109,48 @@
           output.value = "Lỗi: " + err;
         }
       }
+      // format file email txt from to excel
+      document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+
+let accounts = [];
+
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  
+  if (file && file.type === 'text/plain') {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const rawList = e.target.result.trim();
+      const lines = rawList.split("\n");
+      accounts = lines.map(line => {
+        const [email, password] = line.split("|");
+        return { Email: email, Password: password };
+      });
+      alert("File loaded successfully!");
+    };
+    reader.readAsText(file);
+  } else {
+    alert("Please upload a valid .txt file.");
+  }
+}
+
+// Hàm xuất ra file Excel
+function exportToExcel() {
+  if (accounts.length === 0) {
+    alert("No data to export. Please upload a file first.");
+    return;
+  }
+
+  const ws = XLSX.utils.json_to_sheet(accounts);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Accounts");
+
+  // Tạo và tải file Excel
+  XLSX.writeFile(wb, "accounts.xlsx");
+}
+
+// Gắn sự kiện vào nút
+document.getElementById("exportBtn").addEventListener("click", exportToExcel);
     </script>
   </body>
 </html>
